@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Converter</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header>
+        <div class="header-inner">
+            <div class="logo">
+                <span class="logo-bracket">[</span>
+                <span class="logo-text">CONVERTER</span>
+                <span class="logo-bracket">]</span>
+            </div>
+            <div class="header-sub">file format conversion utility</div>
+        </div>
+    </header>
+
+    <main>
+        <div class="card" id="drop-zone">
+            <div class="drop-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M12 16V4m0 0L8 8m4-4l4 4"/>
+                    <path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>
+                </svg>
+            </div>
+            <p class="drop-label">drag & drop files here</p>
+            <p class="drop-sub">or <label for="file-input" class="file-label">browse</label></p>
+            <input type="file" id="file-input" hidden multiple>
+            <p class="drop-formats">jpg · png · webp · bmp · tiff · ico · heic · avif · svg · eps · pdf · docx · odt · pptx · xlsx · rtf</p>
+        </div>
+
+        <div class="card hidden" id="convert-panel">
+            <div class="file-info">
+                <div class="file-icon" id="file-icon">PDF</div>
+                <div class="file-details">
+                    <div class="file-name" id="file-name">document.pdf</div>
+                    <div class="file-size" id="file-size">2.4 MB</div>
+                </div>
+                <button class="btn-clear" id="btn-clear" title="Remove file">✕</button>
+            </div>
+
+            <div class="format-row">
+                <div class="format-label">convert to</div>
+                <div class="format-buttons" id="format-buttons"></div>
+            </div>
+
+            <div class="merge-row hidden" id="merge-row">
+                <label class="merge-label">
+                    <input type="checkbox" id="merge-check">
+                    <span>Merge into one file</span>
+                </label>
+            </div>
+
+            <div class="progress-wrap hidden" id="progress-wrap">
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <div class="progress-label" id="progress-label">converting...</div>
+            </div>
+
+            <button class="btn-convert" id="btn-convert" disabled>convert</button>
+
+            <div class="alert hidden" id="alert"></div>
+        </div>
+    </main>
+
+    <footer>
+        <span>converter · self-hosted · <a href="https://github.com/yourusername/converter" target="_blank">github</a></span>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

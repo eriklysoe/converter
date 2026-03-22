@@ -1,0 +1,21 @@
+---
+services:
+  converter:
+    image: ghcr.io/yourusername/converter:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: converter
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Oslo
+      - MAX_FILE_SIZE=50  # in MB
+      - ADMIN_USER=admin
+      - ADMIN_PASS=amu3Vmildj2UHY3NrCIMdob
+    volumes:
+      - ./config:/config
+      - ./config/temp:/tmp/converter
+    ports:
+      - "7391:7391"
+    restart: unless-stopped

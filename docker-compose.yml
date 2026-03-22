@@ -9,10 +9,10 @@ services:
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ=Europe/Oslo
+      - TZ=Etc/UTC
       - MAX_FILE_SIZE=50  # in MB
-      - ADMIN_USER=admin
-      - ADMIN_PASS=amu3Vmildj2UHY3NrCIMdob
+      - ADMIN_USER=changeme
+      - ADMIN_PASS=changeme
     volumes:
       - ./config:/config
       - ./config/temp:/tmp/converter

@@ -1,7 +1,7 @@
 ---
 services:
   converter:
-    image: ghcr.io/yourusername/converter:latest
+    image: ghcr.io/eriklysoe/converter:latest
     build:
       context: .
       dockerfile: Dockerfile

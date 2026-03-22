@@ -1,7 +1,7 @@
 # converter
 
-[![GitHub](https://img.shields.io/badge/github-converter-00d4aa?style=flat-square&logo=github)](https://github.com/yourusername/converter)
-[![Docker](https://img.shields.io/badge/docker-ready-00d4aa?style=flat-square&logo=docker)](https://github.com/yourusername/converter)
+[![GitHub](https://img.shields.io/badge/github-converter-00d4aa?style=flat-square&logo=github)](https://github.com/eriklysoe/converter)
+[![Docker](https://img.shields.io/badge/docker-ready-00d4aa?style=flat-square&logo=docker)](https://github.com/eriklysoe/converter)
 
 A self-hosted file format converter. Drag, drop, convert, download.
 
@@ -31,7 +31,7 @@ Multi-file uploads supported with batch conversion (ZIP output) or merge into a 
 ```yaml
 services:
   converter:
-    image: ghcr.io/yourusername/converter:latest
+    image: ghcr.io/eriklysoe/converter:latest
     container_name: converter
     environment:
       - PUID=1000
@@ -63,7 +63,7 @@ Then open `http://your-server:7391`. The browser will prompt for username and pa
 ## Build locally
 
 ```bash
-git clone https://github.com/yourusername/converter
+git clone https://github.com/eriklysoe/converter
 cd converter
 docker compose up --build
 ```

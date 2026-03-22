@@ -1,9 +1,9 @@
 FROM python:3.12-slim-bookworm
 
-LABEL maintainer="yourusername"
+LABEL maintainer="eriklysoe"
 LABEL org.opencontainers.image.title="Converter"
 LABEL org.opencontainers.image.description="File format converter supporting images, PDFs, and documents"
-LABEL org.opencontainers.image.url="https://github.com/yourusername/converter"
+LABEL org.opencontainers.image.url="https://github.com/eriklysoe/converter"
 
 # Environment defaults
 ENV PUID=1000 \

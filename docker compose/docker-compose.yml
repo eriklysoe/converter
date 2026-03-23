@@ -1,0 +1,17 @@
+services:
+  converter:
+    image: eriklysoe/converter:latest
+    container_name: converter
+    restart: unless-stopped
+    ports:
+      - "7391:7391"
+    volumes:
+      - ./config:/config
+      - ./config/temp:/tmp/converter
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Etc/UTC
+      - MAX_FILE_SIZE=50
+      - ADMIN_USER=changeme
+      - ADMIN_PASS=changeme

@@ -28,23 +28,38 @@ Multi-file uploads supported with batch conversion (ZIP output) or merge into a 
 
 ## Usage
 
+1. Create a `.env` file with your credentials:
+
+```env
+ADMIN_USER=admin
+ADMIN_PASS=changeme
+BASE_URL=http://localhost:7391
+```
+
+2. Create a `docker-compose.yml`:
+
 ```yaml
 services:
   converter:
     image: ghcr.io/eriklysoe/converter:latest
     container_name: converter
+    env_file: .env
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ=Europe/Oslo
-      - MAX_FILE_SIZE=50       # in MB
-      - ADMIN_USER=admin       # required
-      - ADMIN_PASS=changeme    # required
+      - TZ=Etc/UTC
+      - MAX_FILE_SIZE=50
     volumes:
       - ./config:/config
     ports:
       - "7391:7391"
     restart: unless-stopped
+```
+
+3. Start the container:
+
+```bash
+docker compose up -d
 ```
 
 Then open `http://your-server:7391`. The browser will prompt for username and password.
@@ -55,10 +70,11 @@ Then open `http://your-server:7391`. The browser will prompt for username and pa
 |-----------|----------|
 | `PUID` | User ID for file permissions |
 | `PGID` | Group ID for file permissions |
-| `TZ` | Timezone (e.g. `Europe/Oslo`) |
+| `TZ` | Timezone (e.g. `Etc/UTC`) |
 | `MAX_FILE_SIZE` | Max upload size in MB (default `50`) |
-| `ADMIN_USER` | Username for HTTP Basic Auth (required) |
-| `ADMIN_PASS` | Password for HTTP Basic Auth (required) |
+| `ADMIN_USER` | Username for HTTP Basic Auth (required, in `.env`) |
+| `ADMIN_PASS` | Password for HTTP Basic Auth (required, in `.env`) |
+| `BASE_URL` | Public-facing URL for reverse proxy setups (default `http://localhost:7391`) |
 
 ## Build locally
 

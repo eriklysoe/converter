@@ -17,6 +17,7 @@ echo "
   PGID:     ${PGID}
   TZ:       ${TZ}
   Max size: ${MAX_FILE_SIZE}MB
+  Base URL: ${BASE_URL:-http://localhost:7391}
 ─────────────────────────────────────────
 "
 

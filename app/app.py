@@ -1,6 +1,7 @@
 import os
 import logging
 from flask import Flask
+from werkzeug.middleware.proxy_fix import ProxyFix
 from .routes import main
 
 logging.basicConfig(
@@ -17,6 +18,12 @@ def create_app():
     app.config["SECRET_KEY"] = os.urandom(24)
 
     os.makedirs(app.config["TEMP_DIR"], exist_ok=True)
+
+    # Trust X-Forwarded-* headers from reverse proxy
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
+    BASE_URL = os.environ.get("BASE_URL", "http://localhost:7391").rstrip("/")
+    app.config["BASE_URL"] = BASE_URL
 
     app.register_blueprint(main)
     return app

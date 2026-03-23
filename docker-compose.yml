@@ -6,13 +6,12 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: converter
+    env_file: .env
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ=Etc/UTC
+      - TZ=Europe/Oslo
       - MAX_FILE_SIZE=50  # in MB
-      - ADMIN_USER=changeme
-      - ADMIN_PASS=changeme
     volumes:
       - ./config:/config
       - ./config/temp:/tmp/converter

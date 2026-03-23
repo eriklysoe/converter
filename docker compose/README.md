@@ -4,11 +4,12 @@ A self-hosted file format converter with a drag-and-drop web UI. Supports conver
 
 ## Quick Start
 
-1. Edit `docker-compose.yml` and set your credentials:
+1. Create a `.env` file next to `docker-compose.yml` with your credentials:
 
-```yaml
-- ADMIN_USER=changeme
-- ADMIN_PASS=changeme
+```env
+ADMIN_USER=admin
+ADMIN_PASS=changeme
+BASE_URL=http://localhost:7391
 ```
 
 2. Start the container:
@@ -31,6 +32,7 @@ docker pull eriklysoe/converter:latest
 |---|---|---|---|
 | `ADMIN_USER` | **Yes** | — | Username for web UI login |
 | `ADMIN_PASS` | **Yes** | — | Password for web UI login |
+| `BASE_URL` | No | `http://localhost:7391` | Public-facing URL (for reverse proxy setups) |
 | `MAX_FILE_SIZE` | No | `50` | Max upload size in MB |
 | `PUID` | No | `1000` | Run as this user ID |
 | `PGID` | No | `1000` | Run as this group ID |
@@ -45,4 +47,4 @@ docker pull eriklysoe/converter:latest
 
 ## Reverse Proxy
 
-When behind a reverse proxy, update the port mapping or set up your proxy to forward to port `7391`.
+When behind a reverse proxy, set `BASE_URL` in your `.env` file to the public-facing URL (e.g., `https://converter.yourdomain.com`) and forward traffic to port `7391`. The app includes ProxyFix middleware to trust `X-Forwarded-*` headers.

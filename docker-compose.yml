@@ -10,7 +10,7 @@ services:
     environment:
       - PUID=1000
       - PGID=1000
-      - TZ=Europe/Oslo
+      - TZ=Etc/UTC
       - MAX_FILE_SIZE=50  # in MB
     volumes:
       - ./config:/config

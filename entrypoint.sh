@@ -38,5 +38,5 @@ fi
 # Fix permissions
 chown -R converter:converter /app /config
 
-# Run Flask as the converter user
-exec gosu converter python -m app.app
+# Run Gunicorn as the converter user
+exec gosu converter gunicorn --bind 0.0.0.0:7391 --workers 4 --timeout 120 "app.app:create_app()"

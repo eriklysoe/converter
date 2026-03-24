@@ -11,6 +11,9 @@ logging.basicConfig(
 )
 
 def create_app():
+    if not os.environ.get("ADMIN_USER") or not os.environ.get("ADMIN_PASS"):
+        raise SystemExit("ADMIN_USER and ADMIN_PASS environment variables are required.")
+
     app = Flask(__name__, template_folder="templates", static_folder="static")
     max_mb = int(os.environ.get("MAX_FILE_SIZE", 50))
     app.config["MAX_CONTENT_LENGTH"] = max_mb * 1024 * 1024

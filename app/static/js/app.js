@@ -141,7 +141,8 @@ btnConvert.addEventListener('click', async () => {
         let name;
         if (currentFiles.length === 1) {
             const baseName = currentFiles[0].name.replace(/\.[^.]+$/, '');
-            name = match && match[1].endsWith('.zip') ? `${baseName}.zip` : `${baseName}.${selectedFormat}`;
+            const ext = selectedFormat.startsWith('mp3') ? 'mp3' : selectedFormat;
+            name = match && match[1].endsWith('.zip') ? `${baseName}.zip` : `${baseName}.${ext}`;
         } else if (mergeCheck.checked) {
             name = `merged.${selectedFormat}`;
         } else {

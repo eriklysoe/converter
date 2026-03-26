@@ -1,0 +1,22 @@
+Converter - Feature Suggestions
+================================
+
+AUDIO (ffmpeg already in container)
+- MP3 → WAV/FLAC — reverse direction, useful for editing/archiving
+- OGG/Vorbis ↔ MP3/WAV/FLAC — common open-source format
+- M4A/AAC → MP3/WAV/FLAC — Apple/YouTube downloads
+- AIFF → MP3/WAV/FLAC — common in music production
+
+VIDEO (ffmpeg already in container)
+- MP4/MKV/MOV → MP4 — re-encode/compress video
+- Video → MP3 — extract audio from video
+- Video → GIF — short clips to animated GIFs
+
+DOCUMENTS/DATA
+- Markdown → PDF — via pandoc (needs adding to Dockerfile)
+- CSV → XLSX — via openpyxl (Python library, no system deps)
+- XLSX → CSV — reverse
+
+IMAGES
+- RAW camera files (CR2, NEF, ARW) → JPG/PNG — via dcraw or rawpy
+- GIF ↔ WebP — animated format conversion (Pillow can handle this)

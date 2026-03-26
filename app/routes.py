@@ -16,8 +16,17 @@ from .converters.pdf_converter import (
     images_to_pdf,
     merge_pdfs,
 )
-from .converters.document_converter import document_to_pdf, pdf_to_docx, pdf_to_odt, pdf_to_pptx
+from .converters.document_converter import (
+    document_to_pdf, pdf_to_docx, pdf_to_odt, pdf_to_pptx,
+    markdown_to_pdf, csv_to_xlsx, xlsx_to_csv,
+)
 from .converters.eps_converter import eps_to_image, eps_to_svg, eps_to_pdf, to_eps
+from .converters.audio_converter import (
+    audio_to_mp3_320, audio_to_mp3_vbr, audio_to_wav, audio_to_flac,
+    audio_to_ogg, audio_to_aiff,
+)
+from .converters.video_converter import video_to_mp4, video_to_mp3, video_to_gif
+from .converters.image_converter import convert_raw_to_image, convert_gif_webp
 
 logger = logging.getLogger(__name__)
 main = Blueprint("main", __name__)
@@ -36,14 +45,18 @@ def require_auth(f):
 ALLOWED_EXTENSIONS = {
     "jpg", "jpeg", "png", "webp", "bmp", "tiff", "tif", "ico",
     "heic", "heif", "avif", "svg", "eps",
-    "pdf", "docx", "doc", "odt", "pptx", "xlsx", "rtf"
+    "pdf", "docx", "doc", "odt", "pptx", "xlsx", "rtf",
+    "flac", "wav", "mp3", "ogg", "m4a", "aac", "aiff",
+    "mp4", "mkv", "mov",
+    "md", "csv",
+    "gif", "cr2", "nef", "arw"
 }
 
 CONVERSION_MAP = {
     "jpg":  ["png", "webp", "bmp", "tiff", "ico", "avif", "pdf", "eps"],
     "jpeg": ["png", "webp", "bmp", "tiff", "ico", "avif", "pdf", "eps"],
     "png":  ["jpg", "webp", "bmp", "tiff", "ico", "avif", "pdf", "eps"],
-    "webp": ["jpg", "png", "bmp", "tiff", "ico", "avif", "pdf", "eps"],
+    "webp": ["jpg", "png", "bmp", "tiff", "ico", "avif", "pdf", "eps", "gif"],
     "bmp":  ["jpg", "png", "webp", "tiff", "ico", "avif", "pdf", "eps"],
     "tiff": ["jpg", "png", "webp", "bmp", "ico", "avif", "pdf", "eps"],
     "tif":  ["jpg", "png", "webp", "bmp", "ico", "avif", "pdf", "eps"],
@@ -58,8 +71,24 @@ CONVERSION_MAP = {
     "doc":  ["pdf"],
     "odt":  ["pdf"],
     "pptx": ["pdf"],
-    "xlsx": ["pdf"],
+    "xlsx": ["pdf", "csv"],
     "rtf":  ["pdf"],
+    "flac": ["mp3-320", "mp3-vbr", "wav", "ogg", "aiff"],
+    "wav":  ["mp3-320", "mp3-vbr", "flac", "ogg", "aiff"],
+    "mp3":  ["wav", "flac", "ogg", "aiff"],
+    "ogg":  ["mp3-320", "mp3-vbr", "wav", "flac", "aiff"],
+    "m4a":  ["mp3-320", "mp3-vbr", "wav", "flac", "ogg"],
+    "aac":  ["mp3-320", "mp3-vbr", "wav", "flac", "ogg"],
+    "aiff": ["mp3-320", "mp3-vbr", "wav", "flac", "ogg"],
+    "mp4":  ["mp3", "gif"],
+    "mkv":  ["mp4", "mp3", "gif"],
+    "mov":  ["mp4", "mp3", "gif"],
+    "md":   ["pdf"],
+    "csv":  ["xlsx"],
+    "gif":  ["webp", "png", "jpg"],
+    "cr2":  ["jpg", "png"],
+    "nef":  ["jpg", "png"],
+    "arw":  ["jpg", "png"],
 }
 
 
@@ -326,5 +355,98 @@ def dispatch(input_path, src_ext, target, uid):
         out = os.path.join(temp, f"{uid}_out.pdf")
         document_to_pdf(input_path, out, temp)
         return out, "application/pdf", "converted.pdf"
+
+    # ── Audio conversions ─────────────────────────────────────────
+    audio_inputs = ("flac", "wav", "mp3", "ogg", "m4a", "aac", "aiff")
+
+    if src_ext in audio_inputs and target == "mp3-320":
+        out = os.path.join(temp, f"{uid}_out.mp3")
+        audio_to_mp3_320(input_path, out)
+        return out, "audio/mpeg", "converted.mp3"
+
+    if src_ext in audio_inputs and target == "mp3-vbr":
+        out = os.path.join(temp, f"{uid}_out.mp3")
+        audio_to_mp3_vbr(input_path, out)
+        return out, "audio/mpeg", "converted.mp3"
+
+    if src_ext in audio_inputs and target == "wav":
+        out = os.path.join(temp, f"{uid}_out.wav")
+        audio_to_wav(input_path, out)
+        return out, "audio/wav", "converted.wav"
+
+    if src_ext in audio_inputs and target == "flac":
+        out = os.path.join(temp, f"{uid}_out.flac")
+        audio_to_flac(input_path, out)
+        return out, "audio/flac", "converted.flac"
+
+    if src_ext in audio_inputs and target == "ogg":
+        out = os.path.join(temp, f"{uid}_out.ogg")
+        audio_to_ogg(input_path, out)
+        return out, "audio/ogg", "converted.ogg"
+
+    if src_ext in audio_inputs and target == "aiff":
+        out = os.path.join(temp, f"{uid}_out.aiff")
+        audio_to_aiff(input_path, out)
+        return out, "audio/aiff", "converted.aiff"
+
+    # ── Video conversions ─────────────────────────────────────────
+    video_inputs = ("mp4", "mkv", "mov")
+
+    if src_ext in video_inputs and target == "mp4":
+        out = os.path.join(temp, f"{uid}_out.mp4")
+        video_to_mp4(input_path, out)
+        return out, "video/mp4", "converted.mp4"
+
+    if src_ext in video_inputs and target == "mp3":
+        out = os.path.join(temp, f"{uid}_out.mp3")
+        video_to_mp3(input_path, out)
+        return out, "audio/mpeg", "converted.mp3"
+
+    if src_ext in video_inputs and target == "gif":
+        out = os.path.join(temp, f"{uid}_out.gif")
+        video_to_gif(input_path, out)
+        return out, "image/gif", "converted.gif"
+
+    # ── Markdown → PDF ────────────────────────────────────────────
+    if src_ext == "md" and target == "pdf":
+        out = os.path.join(temp, f"{uid}_out.pdf")
+        markdown_to_pdf(input_path, out)
+        return out, "application/pdf", "converted.pdf"
+
+    # ── CSV → XLSX ────────────────────────────────────────────────
+    if src_ext == "csv" and target == "xlsx":
+        out = os.path.join(temp, f"{uid}_out.xlsx")
+        csv_to_xlsx(input_path, out)
+        return out, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "converted.xlsx"
+
+    # ── XLSX → CSV ────────────────────────────────────────────────
+    if src_ext == "xlsx" and target == "csv":
+        out = os.path.join(temp, f"{uid}_out.csv")
+        xlsx_to_csv(input_path, out)
+        return out, "text/csv", "converted.csv"
+
+    # ── GIF ↔ WebP (animated-aware) ──────────────────────────────
+    if src_ext == "gif" and target == "webp":
+        out = os.path.join(temp, f"{uid}_out.webp")
+        convert_gif_webp(input_path, out, "webp")
+        return out, "image/webp", "converted.webp"
+
+    if src_ext == "webp" and target == "gif":
+        out = os.path.join(temp, f"{uid}_out.gif")
+        convert_gif_webp(input_path, out, "gif")
+        return out, "image/gif", "converted.gif"
+
+    # ── GIF → raster (PNG/JPG via Pillow) ─────────────────────────
+    if src_ext == "gif" and target in ("png", "jpg"):
+        out = os.path.join(temp, f"{uid}_out.{target}")
+        convert_image(input_path, out, target)
+        mime = {"png": "image/png", "jpg": "image/jpeg"}[target]
+        return out, mime, f"converted.{target}"
+
+    # ── RAW → JPG/PNG ─────────────────────────────────────────────
+    if src_ext in ("cr2", "nef", "arw") and target in ("jpg", "png"):
+        out = os.path.join(temp, f"{uid}_out.{target}")
+        convert_raw_to_image(input_path, out, target)
+        return out, f"image/{target}", f"converted.{target}"
 
     raise ValueError(f"No handler for {src_ext} → {target}")

@@ -36,6 +36,49 @@ def document_to_pdf(input_path: str, output_path: str, temp_dir: str) -> None:
     logger.info("Converted document to PDF: %s", output_path)
 
 
+def markdown_to_pdf(input_path: str, output_path: str) -> None:
+    """Convert Markdown to PDF using pandoc."""
+    cmd = [
+        "pandoc", input_path,
+        "-o", output_path,
+        "--pdf-engine=weasyprint",
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"pandoc Markdown→PDF failed: {result.stderr}")
+    logger.info("Converted Markdown to PDF")
+
+
+def csv_to_xlsx(input_path: str, output_path: str) -> None:
+    """Convert CSV to XLSX using openpyxl."""
+    import csv
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    with open(input_path, newline="", encoding="utf-8-sig") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            ws.append(row)
+    wb.save(output_path)
+    logger.info("Converted CSV to XLSX")
+
+
+def xlsx_to_csv(input_path: str, output_path: str) -> None:
+    """Convert XLSX to CSV using openpyxl."""
+    import csv
+    from openpyxl import load_workbook
+
+    wb = load_workbook(input_path, read_only=True)
+    ws = wb.active
+    with open(output_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        for row in ws.iter_rows(values_only=True):
+            writer.writerow(row)
+    wb.close()
+    logger.info("Converted XLSX to CSV")
+
+
 def pdf_to_odt(input_path: str, output_path: str, temp_dir: str) -> None:
     """Convert PDF to ODT via image-based DOCX then LibreOffice DOCX→ODT."""
     import uuid as _uuid

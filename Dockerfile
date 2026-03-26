@@ -17,6 +17,10 @@ ENV PUID=1000 \
 RUN apt-get update && apt-get install -y --no-install-recommends \
     inkscape \
     ghostscript \
+    ffmpeg \
+    dcraw \
+    pandoc \
+    weasyprint \
     pdftk-java \
     libreoffice \
     libreoffice-writer \

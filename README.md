@@ -18,9 +18,11 @@ A self-hosted file format converter. Drag, drop, convert, download.
 | GIF          | WebP, PNG, JPG                | Pillow          |
 | WebP         | GIF                           | Pillow          |
 | CR2/NEF/ARW (RAW) | JPG, PNG                 | rawpy + Pillow  |
-| SVG          | PNG, JPG, EPS                 | Inkscape + Ghostscript |
+| SVG          | PNG, JPG, EPS, PDF            | Inkscape + Ghostscript |
 | EPS          | PNG, JPG, SVG, PDF            | Ghostscript + Inkscape |
 | Image/SVG/PDF | EPS                          | Ghostscript     |
+| Image (JPG/PNG/WebP/etc.) | OCR-PDF (searchable) | ocrmypdf + Tesseract |
+| Image (JPG/PNG/WebP/etc.) | TXT                  | Tesseract OCR   |
 
 ### Documents
 
@@ -32,10 +34,14 @@ A self-hosted file format converter. Drag, drop, convert, download.
 | PDF          | DOCX (image-based, A4 scaled) | Inkscape + python-docx |
 | PDF          | ODT                           | via DOCX + LibreOffice |
 | PDF          | PPTX (vector, one object/slide) | Inkscape SVG→EMF + python-pptx |
-| DOCX/DOC/ODT/PPTX/XLSX/RTF | PDF             | LibreOffice     |
-| Markdown     | PDF                           | LibreOffice     |
+| DOCX/DOC/ODT/PPTX/XLSX/CSV/RTF | PDF         | LibreOffice     |
+| Markdown     | PDF                           | pandoc + weasyprint |
 | CSV          | XLSX                          | openpyxl        |
 | XLSX         | CSV                           | openpyxl        |
+| PDF          | PDF/A-2b (archival)           | Ghostscript     |
+| PDF          | OCR-PDF (searchable)          | ocrmypdf + Tesseract |
+| PDF          | TXT (text extraction)         | pdftotext (poppler) |
+| ZIP          | any supported image format    | extracts, converts each file, re-zips |
 
 ### Audio
 
@@ -47,13 +53,16 @@ A self-hosted file format converter. Drag, drop, convert, download.
 | WAV/MP3/OGG/M4A/AAC/AIFF  | FLAC                 | FFmpeg          |
 | FLAC/WAV/MP3/M4A/AAC/AIFF | OGG                  | FFmpeg          |
 | FLAC/WAV/MP3/OGG/M4A/AAC  | AIFF                 | FFmpeg          |
+| FLAC/WAV/MP3/OGG/AAC/AIFF | M4A/AAC              | FFmpeg          |
 
 ### Video
 
 | Input        | Output                        | Engine          |
 |--------------|-------------------------------|-----------------|
 | MKV/MOV      | MP4                           | FFmpeg          |
-| MP4/MKV/MOV  | MP3 (audio extract)           | FFmpeg          |
+| MP4/MKV/MOV/WebM | MP4-720p, MP4-1080p       | FFmpeg          |
+| MP4/MKV/MOV  | WebM (VP9 + Opus)             | FFmpeg          |
+| MP4/MKV/MOV/WebM | MP3 (audio extract)       | FFmpeg          |
 | MP4/MKV/MOV  | GIF                           | FFmpeg          |
 
 Multi-file uploads supported with batch conversion (ZIP output) or merge into a single DOCX/PPTX/PDF. Multi-page outputs are bundled as a ZIP download.
@@ -123,6 +132,9 @@ docker compose up --build
 - LibreOffice handles office document conversions headless.
 - FFmpeg handles all audio and video conversions. MP3 encoding offers both 320 kbps CBR and LAME V0 VBR options.
 - RAW camera files (CR2, NEF, ARW) are converted via rawpy + Pillow.
+- OCR uses Tesseract (via ocrmypdf for PDF output, directly for TXT output). English and Norwegian language packs are included.
+- ZIP uploads are extracted server-side; each compatible file is converted individually and the results are re-packaged as a ZIP download.
+- PDF/A conversion uses Ghostscript's `pdfwrite` device with `-dPDFA=2` for PDF/A-2b compliance.
 - PDF→DOCX renders each page as a 300 DPI image scaled to fit A4 (landscape/portrait auto-detected). This avoids clipping issues with non-standard page sizes.
 - PDF→PPTX converts via SVG→EMF so each page is a single resizable vector object per slide.
 - PDF→ODT converts via the DOCX pipeline then LibreOffice DOCX→ODT.

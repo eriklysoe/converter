@@ -128,5 +128,6 @@ docker compose up --build
 - PDF→ODT converts via the DOCX pipeline then LibreOffice DOCX→ODT.
 - HEIC/HEIF support requires pillow-heif (included in requirements).
 - `ADMIN_USER` and `ADMIN_PASS` must both be set or the app will refuse to start.
+- The app is served via Gunicorn (production WSGI server) on port 7391.
 - Temporary files are cleaned up after each conversion.
 - The Docker image is large due to Inkscape + Ghostscript + LibreOffice + FFmpeg. This is expected.

@@ -33,6 +33,52 @@ def video_to_mp3(input_path: str, output_path: str) -> None:
     logger.info("Extracted audio to MP3")
 
 
+def video_to_webm(input_path: str, output_path: str) -> None:
+    """Convert video to WebM (VP9 + Opus)."""
+    cmd = [
+        "ffmpeg", "-y", "-i", input_path,
+        "-codec:v", "libvpx-vp9", "-crf", "33", "-b:v", "0",
+        "-codec:a", "libopus", "-b:a", "128k",
+        output_path,
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"ffmpeg video→WebM failed: {result.stderr}")
+    logger.info("Converted video to WebM")
+
+
+def video_to_mp4_720p(input_path: str, output_path: str) -> None:
+    """Re-encode video to MP4 at 720p (H.264 + AAC)."""
+    cmd = [
+        "ffmpeg", "-y", "-i", input_path,
+        "-vf", "scale=-2:720",
+        "-codec:v", "libx264", "-preset", "medium", "-crf", "23",
+        "-codec:a", "aac", "-b:a", "192k",
+        "-movflags", "+faststart",
+        output_path,
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"ffmpeg video→MP4 720p failed: {result.stderr}")
+    logger.info("Converted video to MP4 720p")
+
+
+def video_to_mp4_1080p(input_path: str, output_path: str) -> None:
+    """Re-encode video to MP4 at 1080p (H.264 + AAC)."""
+    cmd = [
+        "ffmpeg", "-y", "-i", input_path,
+        "-vf", "scale=-2:1080",
+        "-codec:v", "libx264", "-preset", "medium", "-crf", "20",
+        "-codec:a", "aac", "-b:a", "192k",
+        "-movflags", "+faststart",
+        output_path,
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"ffmpeg video→MP4 1080p failed: {result.stderr}")
+    logger.info("Converted video to MP4 1080p")
+
+
 def video_to_gif(input_path: str, output_path: str) -> None:
     """Convert video to GIF using two-pass palette for quality."""
     palette = output_path + ".palette.png"

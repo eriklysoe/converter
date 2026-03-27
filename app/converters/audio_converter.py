@@ -40,3 +40,8 @@ def audio_to_ogg(input_path: str, output_path: str) -> None:
 def audio_to_aiff(input_path: str, output_path: str) -> None:
     """Convert audio to AIFF (16-bit PCM)."""
     _ffmpeg_audio(input_path, output_path, ["-codec:a", "pcm_s16be"])
+
+
+def audio_to_m4a(input_path: str, output_path: str) -> None:
+    """Convert audio to M4A/AAC (256 kbps)."""
+    _ffmpeg_audio(input_path, output_path, ["-codec:a", "aac", "-b:a", "256k"])

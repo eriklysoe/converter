@@ -2,21 +2,39 @@ Converter - Feature Suggestions
 ================================
 
 AUDIO (ffmpeg already in container)
-- MP3 → WAV/FLAC — reverse direction, useful for editing/archiving
-- OGG/Vorbis ↔ MP3/WAV/FLAC — common open-source format
-- M4A/AAC → MP3/WAV/FLAC — Apple/YouTube downloads
-- AIFF → MP3/WAV/FLAC — common in music production
+- [x] MP3 → WAV/FLAC — reverse direction, useful for editing/archiving
+- [x] OGG/Vorbis ↔ MP3/WAV/FLAC — common open-source format
+- [x] M4A/AAC → MP3/WAV/FLAC — Apple/YouTube downloads
+- [x] AIFF → MP3/WAV/FLAC — common in music production
+- [ ] Audio → M4A/AAC output — supported as input, missing as output target
 
 VIDEO (ffmpeg already in container)
-- MP4/MKV/MOV → MP4 — re-encode/compress video
-- Video → MP3 — extract audio from video
-- Video → GIF — short clips to animated GIFs
+- [x] MP4/MKV/MOV → MP4 — re-encode/compress video
+- [x] Video → MP3 — extract audio from video
+- [x] Video → GIF — short clips to animated GIFs
+- [x] Video → WebM — FFmpeg VP9 + Opus
+- [x] Video → MP4 with quality options — MP4-720P and MP4-1080P targets
 
 DOCUMENTS/DATA
-- Markdown → PDF — via pandoc (needs adding to Dockerfile)
-- CSV → XLSX — via openpyxl (Python library, no system deps)
-- XLSX → CSV — reverse
+- [x] Markdown → PDF — via pandoc (needs adding to Dockerfile)
+- [x] CSV → XLSX — via openpyxl (Python library, no system deps)
+- [x] XLSX → CSV — reverse
+- [x] CSV → PDF — via LibreOffice headless
+- [x] SVG → PDF — Inkscape, added to CONVERSION_MAP and dispatch
+- [x] PDF → PDF/A — Ghostscript -sDEVICE=pdfwrite -dPDFA=2
+- [ ] PDF compression — Ghostscript -dPDFSETTINGS=/screen|/ebook|/printer, highly requested
+- [x] Text extraction from PDF — pdftotext (poppler-utils) → .txt
+- [x] OCR: image/PDF → searchable PDF or .txt — tesseract + ocrmypdf
+
+AUDIO
+- [x] M4A/AAC output — added as output target for all audio formats
 
 IMAGES
-- RAW camera files (CR2, NEF, ARW) → JPG/PNG — via dcraw or rawpy
-- GIF ↔ WebP — animated format conversion (Pillow can handle this)
+- [x] RAW camera files (CR2, NEF, ARW) → JPG/PNG — via dcraw or rawpy
+- [x] GIF ↔ WebP — animated format conversion (Pillow can handle this)
+- [ ] Image resize/compression — not format conversion, but "convert to JPG 80% quality" etc.
+
+LARGER FEATURES
+- [x] ZIP upload → convert all files inside → download as ZIP
+- [ ] Font conversion — TTF ↔ OTF ↔ WOFF/WOFF2 via fonttools
+- [ ] Video trimming — specify start/end time before conversion

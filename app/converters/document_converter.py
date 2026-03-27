@@ -36,6 +36,21 @@ def document_to_pdf(input_path: str, output_path: str, temp_dir: str) -> None:
     logger.info("Converted document to PDF: %s", output_path)
 
 
+def pdf_to_pdfa(input_path: str, output_path: str) -> None:
+    """Convert PDF to PDF/A-2b (archival format) via Ghostscript."""
+    cmd = [
+        "gs", "-dBATCH", "-dNOPAUSE", "-dNOSAFER",
+        "-sDEVICE=pdfwrite",
+        "-dPDFA=2", "-dPDFACompatibilityPolicy=1",
+        f"-sOutputFile={output_path}",
+        input_path,
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"Ghostscript PDF→PDF/A failed: {result.stderr}")
+    logger.info("Converted PDF to PDF/A: %s", output_path)
+
+
 def markdown_to_pdf(input_path: str, output_path: str) -> None:
     """Convert Markdown to PDF using pandoc."""
     cmd = [

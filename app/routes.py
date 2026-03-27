@@ -18,14 +18,20 @@ from .converters.pdf_converter import (
 )
 from .converters.document_converter import (
     document_to_pdf, pdf_to_docx, pdf_to_odt, pdf_to_pptx,
-    markdown_to_pdf, csv_to_xlsx, xlsx_to_csv,
+    markdown_to_pdf, csv_to_xlsx, xlsx_to_csv, pdf_to_pdfa,
 )
 from .converters.eps_converter import eps_to_image, eps_to_svg, eps_to_pdf, to_eps
 from .converters.audio_converter import (
     audio_to_mp3_320, audio_to_mp3_vbr, audio_to_wav, audio_to_flac,
-    audio_to_ogg, audio_to_aiff,
+    audio_to_ogg, audio_to_aiff, audio_to_m4a,
 )
-from .converters.video_converter import video_to_mp4, video_to_mp3, video_to_gif
+from .converters.video_converter import (
+    video_to_mp4, video_to_mp3, video_to_gif,
+    video_to_webm, video_to_mp4_720p, video_to_mp4_1080p,
+)
+from .converters.ocr_converter import (
+    pdf_to_ocr_pdf, image_to_ocr_pdf, pdf_to_txt, image_to_txt,
+)
 from .converters.image_converter import convert_raw_to_image, convert_gif_webp
 
 logger = logging.getLogger(__name__)
@@ -47,48 +53,51 @@ ALLOWED_EXTENSIONS = {
     "heic", "heif", "avif", "svg", "eps",
     "pdf", "docx", "doc", "odt", "pptx", "xlsx", "rtf",
     "flac", "wav", "mp3", "ogg", "m4a", "aac", "aiff",
-    "mp4", "mkv", "mov",
+    "mp4", "mkv", "mov", "webm",
     "md", "csv",
-    "gif", "cr2", "nef", "arw"
+    "gif", "cr2", "nef", "arw",
+    "zip",
 }
 
 CONVERSION_MAP = {
-    "jpg":  ["png", "webp", "bmp", "tiff", "ico", "avif", "pdf", "eps"],
-    "jpeg": ["png", "webp", "bmp", "tiff", "ico", "avif", "pdf", "eps"],
-    "png":  ["jpg", "webp", "bmp", "tiff", "ico", "avif", "pdf", "eps"],
-    "webp": ["jpg", "png", "bmp", "tiff", "ico", "avif", "pdf", "eps", "gif"],
-    "bmp":  ["jpg", "png", "webp", "tiff", "ico", "avif", "pdf", "eps"],
-    "tiff": ["jpg", "png", "webp", "bmp", "ico", "avif", "pdf", "eps"],
-    "tif":  ["jpg", "png", "webp", "bmp", "ico", "avif", "pdf", "eps"],
+    "jpg":  ["png", "webp", "bmp", "tiff", "ico", "avif", "pdf", "eps", "ocr-pdf", "txt"],
+    "jpeg": ["png", "webp", "bmp", "tiff", "ico", "avif", "pdf", "eps", "ocr-pdf", "txt"],
+    "png":  ["jpg", "webp", "bmp", "tiff", "ico", "avif", "pdf", "eps", "ocr-pdf", "txt"],
+    "webp": ["jpg", "png", "bmp", "tiff", "ico", "avif", "pdf", "eps", "gif", "ocr-pdf", "txt"],
+    "bmp":  ["jpg", "png", "webp", "tiff", "ico", "avif", "pdf", "eps", "ocr-pdf", "txt"],
+    "tiff": ["jpg", "png", "webp", "bmp", "ico", "avif", "pdf", "eps", "ocr-pdf", "txt"],
+    "tif":  ["jpg", "png", "webp", "bmp", "ico", "avif", "pdf", "eps", "ocr-pdf", "txt"],
     "ico":  ["jpg", "png", "webp", "bmp", "tiff", "avif"],
-    "heic": ["jpg", "png", "webp", "bmp", "tiff", "avif", "pdf", "eps"],
-    "heif": ["jpg", "png", "webp", "bmp", "tiff", "avif", "pdf", "eps"],
-    "avif": ["jpg", "png", "webp", "bmp", "tiff", "ico", "pdf", "eps"],
-    "svg":  ["png", "jpg", "eps"],
+    "heic": ["jpg", "png", "webp", "bmp", "tiff", "avif", "pdf", "eps", "ocr-pdf", "txt"],
+    "heif": ["jpg", "png", "webp", "bmp", "tiff", "avif", "pdf", "eps", "ocr-pdf", "txt"],
+    "avif": ["jpg", "png", "webp", "bmp", "tiff", "ico", "pdf", "eps", "ocr-pdf", "txt"],
+    "svg":  ["png", "jpg", "eps", "pdf"],
     "eps":  ["png", "jpg", "svg", "pdf"],
-    "pdf":  ["png", "jpg", "svg", "docx", "odt", "pptx", "eps"],
+    "pdf":  ["png", "jpg", "svg", "docx", "odt", "pptx", "eps", "pdf-a", "ocr-pdf", "txt"],
     "docx": ["pdf"],
     "doc":  ["pdf"],
     "odt":  ["pdf"],
     "pptx": ["pdf"],
     "xlsx": ["pdf", "csv"],
     "rtf":  ["pdf"],
-    "flac": ["mp3-320", "mp3-vbr", "wav", "ogg", "aiff"],
-    "wav":  ["mp3-320", "mp3-vbr", "flac", "ogg", "aiff"],
-    "mp3":  ["wav", "flac", "ogg", "aiff"],
-    "ogg":  ["mp3-320", "mp3-vbr", "wav", "flac", "aiff"],
+    "flac": ["mp3-320", "mp3-vbr", "wav", "ogg", "aiff", "m4a"],
+    "wav":  ["mp3-320", "mp3-vbr", "flac", "ogg", "aiff", "m4a"],
+    "mp3":  ["wav", "flac", "ogg", "aiff", "m4a"],
+    "ogg":  ["mp3-320", "mp3-vbr", "wav", "flac", "aiff", "m4a"],
     "m4a":  ["mp3-320", "mp3-vbr", "wav", "flac", "ogg"],
-    "aac":  ["mp3-320", "mp3-vbr", "wav", "flac", "ogg"],
-    "aiff": ["mp3-320", "mp3-vbr", "wav", "flac", "ogg"],
-    "mp4":  ["mp3", "gif"],
-    "mkv":  ["mp4", "mp3", "gif"],
-    "mov":  ["mp4", "mp3", "gif"],
+    "aac":  ["mp3-320", "mp3-vbr", "wav", "flac", "ogg", "m4a"],
+    "aiff": ["mp3-320", "mp3-vbr", "wav", "flac", "ogg", "m4a"],
+    "mp4":  ["mp3", "gif", "webm", "mp4-720p", "mp4-1080p"],
+    "mkv":  ["mp4", "mp3", "gif", "webm", "mp4-720p", "mp4-1080p"],
+    "mov":  ["mp4", "mp3", "gif", "webm", "mp4-720p", "mp4-1080p"],
+    "webm": ["mp4", "mp3", "gif", "mp4-720p", "mp4-1080p"],
     "md":   ["pdf"],
-    "csv":  ["xlsx"],
+    "csv":  ["xlsx", "pdf"],
     "gif":  ["webp", "png", "jpg"],
     "cr2":  ["jpg", "png"],
     "nef":  ["jpg", "png"],
     "arw":  ["jpg", "png"],
+    "zip":  ["jpg", "png", "webp", "pdf"],
 }
 
 
@@ -177,8 +186,31 @@ def convert():
             input_path = temp_path(f"{uid}_{safe_name}")
             f.save(input_path)
             input_paths.append(input_path)
-            saved_files.append((input_path, get_ext(f.filename), f.filename))
-            logger.info("Received %s → %s (%s)", get_ext(f.filename), target, safe_name)
+            src_ext = get_ext(f.filename)
+
+            # ZIP input: extract and treat each file inside as an individual input
+            if src_ext == "zip":
+                with zipfile.ZipFile(input_path, "r") as zf:
+                    for member in zf.namelist():
+                        if member.endswith("/") or not allowed_file(member):
+                            continue
+                        member_ext = get_ext(member)
+                        if target not in CONVERSION_MAP.get(member_ext, []):
+                            continue
+                        member_uid = uuid.uuid4().hex
+                        member_safe = secure_filename(os.path.basename(member))
+                        member_path = temp_path(f"{member_uid}_{member_safe}")
+                        with zf.open(member) as src, open(member_path, "wb") as dst:
+                            dst.write(src.read())
+                        input_paths.append(member_path)
+                        saved_files.append((member_path, member_ext, os.path.basename(member)))
+                continue
+
+            saved_files.append((input_path, src_ext, f.filename))
+            logger.info("Received %s → %s (%s)", src_ext, target, safe_name)
+
+        if not saved_files:
+            return jsonify({"error": "ZIP contained no files compatible with the selected target format"}), 400
 
         # Merge mode: combine inputs into one PDF, then convert
         if merge:
@@ -269,6 +301,16 @@ def dispatch(input_path, src_ext, target, uid):
         to_eps(input_path, out)
         return out, "application/postscript", "converted.eps"
 
+    # SVG → PDF
+    if src_ext == "svg" and target == "pdf":
+        out = os.path.join(temp, f"{uid}_out.pdf")
+        import subprocess as _sp
+        cmd = ["inkscape", input_path, "--export-type=pdf", f"--export-filename={out}"]
+        result = _sp.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError(f"Inkscape SVG→PDF failed: {result.stderr}")
+        return out, "application/pdf", "converted.pdf"
+
     # SVG → raster (must use Inkscape, not Pillow)
     if src_ext == "svg" and target in ("png", "jpg", "jpeg"):
         out = os.path.join(temp, f"{uid}_out.{target}")
@@ -350,8 +392,8 @@ def dispatch(input_path, src_ext, target, uid):
         pdf_to_pptx(input_path, out, temp)
         return out, "application/vnd.openxmlformats-officedocument.presentationml.presentation", "converted.pptx"
 
-    # DOCX/DOC/ODT/PPTX/XLSX/RTF → PDF
-    if src_ext in ("docx", "doc", "odt", "pptx", "xlsx", "rtf") and target == "pdf":
+    # DOCX/DOC/ODT/PPTX/XLSX/CSV/RTF → PDF
+    if src_ext in ("docx", "doc", "odt", "pptx", "xlsx", "csv", "rtf") and target == "pdf":
         out = os.path.join(temp, f"{uid}_out.pdf")
         document_to_pdf(input_path, out, temp)
         return out, "application/pdf", "converted.pdf"
@@ -389,13 +431,33 @@ def dispatch(input_path, src_ext, target, uid):
         audio_to_aiff(input_path, out)
         return out, "audio/aiff", "converted.aiff"
 
+    if src_ext in audio_inputs and target == "m4a":
+        out = os.path.join(temp, f"{uid}_out.m4a")
+        audio_to_m4a(input_path, out)
+        return out, "audio/mp4", "converted.m4a"
+
     # ── Video conversions ─────────────────────────────────────────
-    video_inputs = ("mp4", "mkv", "mov")
+    video_inputs = ("mp4", "mkv", "mov", "webm")
 
     if src_ext in video_inputs and target == "mp4":
         out = os.path.join(temp, f"{uid}_out.mp4")
         video_to_mp4(input_path, out)
         return out, "video/mp4", "converted.mp4"
+
+    if src_ext in video_inputs and target == "mp4-720p":
+        out = os.path.join(temp, f"{uid}_out.mp4")
+        video_to_mp4_720p(input_path, out)
+        return out, "video/mp4", "converted_720p.mp4"
+
+    if src_ext in video_inputs and target == "mp4-1080p":
+        out = os.path.join(temp, f"{uid}_out.mp4")
+        video_to_mp4_1080p(input_path, out)
+        return out, "video/mp4", "converted_1080p.mp4"
+
+    if src_ext in video_inputs and target == "webm":
+        out = os.path.join(temp, f"{uid}_out.webm")
+        video_to_webm(input_path, out)
+        return out, "video/webm", "converted.webm"
 
     if src_ext in video_inputs and target == "mp3":
         out = os.path.join(temp, f"{uid}_out.mp3")
@@ -448,5 +510,35 @@ def dispatch(input_path, src_ext, target, uid):
         out = os.path.join(temp, f"{uid}_out.{target}")
         convert_raw_to_image(input_path, out, target)
         return out, f"image/{target}", f"converted.{target}"
+
+    # ── PDF → PDF/A ───────────────────────────────────────────────
+    if src_ext == "pdf" and target == "pdf-a":
+        out = os.path.join(temp, f"{uid}_out.pdf")
+        pdf_to_pdfa(input_path, out)
+        return out, "application/pdf", "converted_pdfa.pdf"
+
+    # ── OCR: image/PDF → searchable PDF ───────────────────────────
+    raster_ocr = ("jpg", "jpeg", "png", "webp", "bmp", "tiff", "tif", "heic", "heif", "avif")
+
+    if src_ext in raster_ocr and target == "ocr-pdf":
+        out = os.path.join(temp, f"{uid}_out.pdf")
+        image_to_ocr_pdf(input_path, out)
+        return out, "application/pdf", "converted_ocr.pdf"
+
+    if src_ext == "pdf" and target == "ocr-pdf":
+        out = os.path.join(temp, f"{uid}_out.pdf")
+        pdf_to_ocr_pdf(input_path, out)
+        return out, "application/pdf", "converted_ocr.pdf"
+
+    # ── OCR: image/PDF → txt ──────────────────────────────────────
+    if src_ext in raster_ocr and target == "txt":
+        out = os.path.join(temp, f"{uid}_out.txt")
+        image_to_txt(input_path, out)
+        return out, "text/plain", "converted.txt"
+
+    if src_ext == "pdf" and target == "txt":
+        out = os.path.join(temp, f"{uid}_out.txt")
+        pdf_to_txt(input_path, out)
+        return out, "text/plain", "converted.txt"
 
     raise ValueError(f"No handler for {src_ext} → {target}")

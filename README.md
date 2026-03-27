@@ -7,15 +7,25 @@ A self-hosted file format converter. Drag, drop, convert, download.
 
 ## Supported conversions
 
+### Images
+
 | Input        | Output                        | Engine          |
 |--------------|-------------------------------|-----------------|
 | JPG/PNG/WebP/BMP/TIFF/AVIF | any of the above ↔ | Pillow          |
 | HEIC/HEIF    | JPG, PNG, WebP, BMP, TIFF, AVIF, PDF, EPS | Pillow + pillow-heif |
 | ICO          | JPG, PNG, WebP, BMP, TIFF, AVIF | Pillow          |
 | Image        | ICO                           | Pillow          |
+| GIF          | WebP, PNG, JPG                | Pillow          |
+| WebP         | GIF                           | Pillow          |
+| CR2/NEF/ARW (RAW) | JPG, PNG                 | rawpy + Pillow  |
 | SVG          | PNG, JPG, EPS                 | Inkscape + Ghostscript |
 | EPS          | PNG, JPG, SVG, PDF            | Ghostscript + Inkscape |
 | Image/SVG/PDF | EPS                          | Ghostscript     |
+
+### Documents
+
+| Input        | Output                        | Engine          |
+|--------------|-------------------------------|-----------------|
 | Image        | PDF                           | ReportLab       |
 | PDF          | PNG, JPG (per page)           | Inkscape + Pillow |
 | PDF          | SVG (per page, high quality)  | Inkscape        |
@@ -23,6 +33,28 @@ A self-hosted file format converter. Drag, drop, convert, download.
 | PDF          | ODT                           | via DOCX + LibreOffice |
 | PDF          | PPTX (vector, one object/slide) | Inkscape SVG→EMF + python-pptx |
 | DOCX/DOC/ODT/PPTX/XLSX/RTF | PDF             | LibreOffice     |
+| Markdown     | PDF                           | LibreOffice     |
+| CSV          | XLSX                          | openpyxl        |
+| XLSX         | CSV                           | openpyxl        |
+
+### Audio
+
+| Input        | Output                        | Engine          |
+|--------------|-------------------------------|-----------------|
+| FLAC/WAV/MP3/OGG/M4A/AAC/AIFF | MP3 (320 kbps CBR) | FFmpeg |
+| FLAC/WAV/OGG/M4A/AAC/AIFF | MP3 (V0 VBR)        | FFmpeg          |
+| FLAC/MP3/OGG/M4A/AAC/AIFF | WAV                  | FFmpeg          |
+| WAV/MP3/OGG/M4A/AAC/AIFF  | FLAC                 | FFmpeg          |
+| FLAC/WAV/MP3/M4A/AAC/AIFF | OGG                  | FFmpeg          |
+| FLAC/WAV/MP3/OGG/M4A/AAC  | AIFF                 | FFmpeg          |
+
+### Video
+
+| Input        | Output                        | Engine          |
+|--------------|-------------------------------|-----------------|
+| MKV/MOV      | MP4                           | FFmpeg          |
+| MP4/MKV/MOV  | MP3 (audio extract)           | FFmpeg          |
+| MP4/MKV/MOV  | GIF                           | FFmpeg          |
 
 Multi-file uploads supported with batch conversion (ZIP output) or merge into a single DOCX/PPTX/PDF. Multi-page outputs are bundled as a ZIP download.
 
@@ -89,10 +121,12 @@ docker compose up --build
 - Inkscape is used for all PDF→SVG and PDF→image conversions for maximum quality (`--pdf-poppler` flag preserves text as selectable elements).
 - Ghostscript handles all EPS import/export (Inkscape 1.2+ cannot read EPS directly).
 - LibreOffice handles office document conversions headless.
+- FFmpeg handles all audio and video conversions. MP3 encoding offers both 320 kbps CBR and LAME V0 VBR options.
+- RAW camera files (CR2, NEF, ARW) are converted via rawpy + Pillow.
 - PDF→DOCX renders each page as a 300 DPI image scaled to fit A4 (landscape/portrait auto-detected). This avoids clipping issues with non-standard page sizes.
 - PDF→PPTX converts via SVG→EMF so each page is a single resizable vector object per slide.
 - PDF→ODT converts via the DOCX pipeline then LibreOffice DOCX→ODT.
 - HEIC/HEIF support requires pillow-heif (included in requirements).
 - `ADMIN_USER` and `ADMIN_PASS` must both be set or the app will refuse to start.
 - Temporary files are cleaned up after each conversion.
-- The Docker image is large (~1.5 GB) due to Inkscape + Ghostscript + LibreOffice. This is expected.
+- The Docker image is large due to Inkscape + Ghostscript + LibreOffice + FFmpeg. This is expected.

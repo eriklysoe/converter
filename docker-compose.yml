@@ -1,7 +1,7 @@
 ---
 services:
   converter:
-    image: ghcr.io/eriklysoe/converter:latest
+    image: eriklysoe/converter:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -11,7 +11,8 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=Etc/UTC
-      - MAX_FILE_SIZE=50  # in MB
+      - MAX_FILE_SIZE=4000  # in MB
+      - WORKER_TIMEOUT=14400  # gunicorn worker timeout in seconds (4 hours)
     volumes:
       - ./config:/config
       - ./config/temp:/tmp/converter

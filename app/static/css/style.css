@@ -178,8 +178,31 @@ main {
     flex-wrap: wrap;
     margin-bottom: 1.75rem;
 }
-.merge-row {
+.merge-row, .split-row {
     margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+.split-input {
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    width: 4.5rem;
+}
+.split-input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+.split-hint {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--text-dim);
 }
 .merge-label {
     display: flex;
@@ -225,6 +248,21 @@ main {
     border-color: var(--accent);
     color: var(--accent);
 }
+
+/* ── Size estimate ───────────────────────────── */
+.size-estimate {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    margin-bottom: 1.25rem;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+}
+.size-estimate .delta-smaller { color: var(--success); }
+.size-estimate .delta-larger  { color: var(--danger); }
+.size-estimate .delta-neutral { color: var(--text-dim); }
 
 /* ── Progress ────────────────────────────────── */
 .progress-wrap { margin-bottom: 1.25rem; }

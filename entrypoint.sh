@@ -17,6 +17,7 @@ echo "
   PGID:     ${PGID}
   TZ:       ${TZ}
   Max size: ${MAX_FILE_SIZE}MB
+  Timeout:  ${WORKER_TIMEOUT:-14400}s
   Base URL: ${BASE_URL:-http://localhost:7391}
 ─────────────────────────────────────────
 "
@@ -39,4 +40,4 @@ fi
 chown -R converter:converter /app /config
 
 # Run Gunicorn as the converter user
-exec gosu converter gunicorn --bind 0.0.0.0:7391 --workers 4 --timeout 120 "app.app:create_app()"
+exec gosu converter gunicorn --bind 0.0.0.0:7391 --workers 4 --timeout "${WORKER_TIMEOUT:-14400}" "app.app:create_app()"

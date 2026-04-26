@@ -47,13 +47,16 @@ A self-hosted file format converter. Drag, drop, convert, download.
 
 | Input        | Output                        | Engine          |
 |--------------|-------------------------------|-----------------|
-| FLAC/WAV/MP3/OGG/M4A/AAC/AIFF | MP3 (320 kbps CBR) | FFmpeg |
-| FLAC/WAV/OGG/M4A/AAC/AIFF | MP3 (V0 VBR)        | FFmpeg          |
-| FLAC/MP3/OGG/M4A/AAC/AIFF | WAV                  | FFmpeg          |
-| WAV/MP3/OGG/M4A/AAC/AIFF  | FLAC                 | FFmpeg          |
-| FLAC/WAV/MP3/M4A/AAC/AIFF | OGG                  | FFmpeg          |
+| FLAC/WAV/OGG/M4A/M4B/AAC/AIFF | MP3 (CBR: 64/96/128/192/256/320 kbps) | FFmpeg |
+| FLAC/WAV/OGG/M4A/M4B/AAC/AIFF | MP3 (V0 VBR)        | FFmpeg          |
+| FLAC/MP3/OGG/M4A/M4B/AAC/AIFF | WAV                  | FFmpeg          |
+| WAV/MP3/OGG/M4A/M4B/AAC/AIFF  | FLAC                 | FFmpeg          |
+| FLAC/WAV/MP3/M4A/M4B/AAC/AIFF | OGG                  | FFmpeg          |
 | FLAC/WAV/MP3/OGG/M4A/AAC  | AIFF                 | FFmpeg          |
-| FLAC/WAV/MP3/OGG/AAC/AIFF | M4A/AAC              | FFmpeg          |
+| FLAC/WAV/MP3/OGG/M4B/AAC/AIFF | M4A/AAC              | FFmpeg          |
+| M4B          | M4B (stream copy) or M4B (AAC re-encoded at 64/96/128/192/256 kbps) | FFmpeg |
+| M4B          | Split by chapters (any of the above audio targets, ZIP of N-chapter parts) | FFmpeg + ffprobe |
+| M4B          | Split by size (any of the above audio targets, ZIP of ~N-MB parts, default 250 MB) | FFmpeg + ffprobe |
 
 ### Video
 
@@ -82,7 +85,7 @@ BASE_URL=http://localhost:7391
 ```yaml
 services:
   converter:
-    image: ghcr.io/eriklysoe/converter:latest
+    image: eriklysoe/converter:latest
     container_name: converter
     env_file: .env
     environment:
@@ -130,7 +133,9 @@ docker compose up --build
 - Inkscape is used for all PDF→SVG and PDF→image conversions for maximum quality (`--pdf-poppler` flag preserves text as selectable elements).
 - Ghostscript handles all EPS import/export (Inkscape 1.2+ cannot read EPS directly).
 - LibreOffice handles office document conversions headless.
-- FFmpeg handles all audio and video conversions. MP3 encoding offers both 320 kbps CBR and LAME V0 VBR options.
+- FFmpeg handles all audio and video conversions. MP3 encoding offers CBR at 64/96/128/192/256/320 kbps and LAME V0 VBR. M4B audiobook files are accepted as input.
+- M4B files can be split by chapters (orthogonal to the target format): tick "Split by chapters", set chapters-per-part, and the result is a ZIP containing N-chapter parts. Combinable with any audio target — e.g. split + transcode to MP3 64 kbps, or split with stream copy to keep the original AAC at no quality loss (target `M4B`), or split + AAC re-encode at a lower bitrate (targets `M4B-64`…`M4B-256`).
+- M4B files can alternatively be split by size: tick "Split by size", set MB per part (default 250 MB), and the result is a ZIP of approximately equal-size parts. Window length is computed from the estimated output bitrate, so part sizes are close but not exact. Combinable with any audio target the same way as chapter splitting; the two split modes are mutually exclusive.
 - RAW camera files (CR2, NEF, ARW) are converted via rawpy + Pillow.
 - OCR uses Tesseract (via ocrmypdf for PDF output, directly for TXT output). English and Norwegian language packs are included.
 - ZIP uploads are extracted server-side; each compatible file is converted individually and the results are re-packaged as a ZIP download.

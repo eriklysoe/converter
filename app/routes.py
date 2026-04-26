@@ -22,8 +22,10 @@ from .converters.document_converter import (
 )
 from .converters.eps_converter import eps_to_image, eps_to_svg, eps_to_pdf, to_eps
 from .converters.audio_converter import (
-    audio_to_mp3_320, audio_to_mp3_vbr, audio_to_wav, audio_to_flac,
+    audio_to_mp3_cbr, audio_to_mp3_vbr, audio_to_wav, audio_to_flac,
     audio_to_ogg, audio_to_aiff, audio_to_m4a,
+    audio_to_m4b_copy, audio_to_m4b_aac,
+    split_by_chapters, split_by_size, get_input_bitrate_kbps,
 )
 from .converters.video_converter import (
     video_to_mp4, video_to_mp3, video_to_gif,
@@ -52,7 +54,7 @@ ALLOWED_EXTENSIONS = {
     "jpg", "jpeg", "png", "webp", "bmp", "tiff", "tif", "ico",
     "heic", "heif", "avif", "svg", "eps",
     "pdf", "docx", "doc", "odt", "pptx", "xlsx", "rtf",
-    "flac", "wav", "mp3", "ogg", "m4a", "aac", "aiff",
+    "flac", "wav", "mp3", "ogg", "m4a", "m4b", "aac", "aiff",
     "mp4", "mkv", "mov", "webm",
     "md", "csv",
     "gif", "cr2", "nef", "arw",
@@ -80,13 +82,15 @@ CONVERSION_MAP = {
     "pptx": ["pdf"],
     "xlsx": ["pdf", "csv"],
     "rtf":  ["pdf"],
-    "flac": ["mp3-320", "mp3-vbr", "wav", "ogg", "aiff", "m4a"],
-    "wav":  ["mp3-320", "mp3-vbr", "flac", "ogg", "aiff", "m4a"],
+    "flac": ["mp3-64", "mp3-96", "mp3-128", "mp3-192", "mp3-256", "mp3-320", "mp3-vbr", "wav", "ogg", "aiff", "m4a"],
+    "wav":  ["mp3-64", "mp3-96", "mp3-128", "mp3-192", "mp3-256", "mp3-320", "mp3-vbr", "flac", "ogg", "aiff", "m4a"],
     "mp3":  ["wav", "flac", "ogg", "aiff", "m4a"],
-    "ogg":  ["mp3-320", "mp3-vbr", "wav", "flac", "aiff", "m4a"],
-    "m4a":  ["mp3-320", "mp3-vbr", "wav", "flac", "ogg"],
-    "aac":  ["mp3-320", "mp3-vbr", "wav", "flac", "ogg", "m4a"],
-    "aiff": ["mp3-320", "mp3-vbr", "wav", "flac", "ogg", "m4a"],
+    "ogg":  ["mp3-64", "mp3-96", "mp3-128", "mp3-192", "mp3-256", "mp3-320", "mp3-vbr", "wav", "flac", "aiff", "m4a"],
+    "m4a":  ["mp3-64", "mp3-96", "mp3-128", "mp3-192", "mp3-256", "mp3-320", "mp3-vbr", "wav", "flac", "ogg"],
+    "m4b":  ["mp3-64", "mp3-96", "mp3-128", "mp3-192", "mp3-256", "mp3-320", "mp3-vbr", "wav", "flac", "ogg", "m4a",
+             "m4b", "m4b-64", "m4b-96", "m4b-128", "m4b-192", "m4b-256"],
+    "aac":  ["mp3-64", "mp3-96", "mp3-128", "mp3-192", "mp3-256", "mp3-320", "mp3-vbr", "wav", "flac", "ogg", "m4a"],
+    "aiff": ["mp3-64", "mp3-96", "mp3-128", "mp3-192", "mp3-256", "mp3-320", "mp3-vbr", "wav", "flac", "ogg", "m4a"],
     "mp4":  ["mp3", "gif", "webm", "mp4-720p", "mp4-1080p"],
     "mkv":  ["mp4", "mp3", "gif", "webm", "mp4-720p", "mp4-1080p"],
     "mov":  ["mp4", "mp3", "gif", "webm", "mp4-720p", "mp4-1080p"],
@@ -174,6 +178,18 @@ def convert():
 
     temp = current_app.config["TEMP_DIR"]
     merge = request.form.get("merge") == "1" and len(files) > 1
+    try:
+        split_chapters = int(request.form.get("split_chapters", "0") or "0")
+    except ValueError:
+        split_chapters = 0
+    try:
+        split_size_mb = int(request.form.get("split_size_mb", "0") or "0")
+    except ValueError:
+        split_size_mb = 0
+    if (split_chapters or split_size_mb) and (len(files) != 1 or get_ext(files[0].filename) != "m4b"):
+        return jsonify({"error": "Split is only supported for a single m4b file"}), 400
+    if split_chapters and split_size_mb:
+        return jsonify({"error": "Choose either split-by-chapters or split-by-size, not both"}), 400
     input_paths = []
     output_paths = []
 
@@ -242,7 +258,10 @@ def convert():
         # Normal mode: convert each file individually
         for inp, ext, orig in saved_files:
             uid = uuid.uuid4().hex
-            out_path, mime, dl_name = dispatch(inp, ext, target, uid)
+            out_path, mime, dl_name = dispatch(inp, ext, target, uid,
+                                               split_chapters=split_chapters,
+                                               split_size_mb=split_size_mb,
+                                               orig_name=orig)
             output_paths.append((out_path, mime, dl_name, orig))
 
         # Single file — return directly
@@ -273,9 +292,89 @@ def convert():
                 os.remove(p)
 
 
-def dispatch(input_path, src_ext, target, uid):
+def _ffmpeg_args_for_audio_target(target):
+    """Return (ffmpeg_args, output_ext, mime) for an audio target token."""
+    if target == "mp3-vbr":
+        return ["-map", "0:a", "-codec:a", "libmp3lame", "-q:a", "0"], "mp3", "audio/mpeg"
+    if target.startswith("mp3-"):
+        return (["-map", "0:a", "-codec:a", "libmp3lame", "-b:a", f"{int(target.rsplit('-', 1)[1])}k"],
+                "mp3", "audio/mpeg")
+    if target == "m4b":
+        return (["-map", "0:a", "-map", "0:v?", "-c", "copy", "-f", "ipod"],
+                "m4b", "audio/mp4")
+    if target.startswith("m4b-"):
+        return (["-map", "0:a", "-map", "0:v?",
+                 "-c:a", "aac", "-b:a", f"{int(target.rsplit('-', 1)[1])}k",
+                 "-c:v", "copy", "-f", "ipod"],
+                "m4b", "audio/mp4")
+    if target == "m4a":
+        return ["-map", "0:a", "-codec:a", "aac", "-b:a", "256k"], "m4a", "audio/mp4"
+    if target == "wav":
+        return ["-map", "0:a", "-codec:a", "pcm_s24le"], "wav", "audio/wav"
+    if target == "flac":
+        return ["-map", "0:a", "-codec:a", "flac", "-compression_level", "8"], "flac", "audio/flac"
+    if target == "ogg":
+        return ["-map", "0:a", "-codec:a", "libvorbis", "-q:a", "6"], "ogg", "audio/ogg"
+    if target == "aiff":
+        return ["-map", "0:a", "-codec:a", "pcm_s16be"], "aiff", "audio/aiff"
+    raise ValueError(f"Unsupported audio target for split: {target}")
+
+
+def _estimated_output_bitrate_kbps(target, input_path):
+    """Best-effort estimate of output audio bitrate (kbps) for size budgeting."""
+    if target.startswith("mp3-") and target != "mp3-vbr":
+        return int(target.rsplit("-", 1)[1])
+    if target == "mp3-vbr":
+        return 245  # LAME V0
+    if target.startswith("m4b-"):
+        return int(target.rsplit("-", 1)[1])
+    if target == "m4b":
+        return get_input_bitrate_kbps(input_path)  # stream copy
+    if target == "m4a":
+        return 256
+    if target == "ogg":
+        return 192
+    if target == "aiff":
+        # 16-bit stereo @ 44.1kHz ≈ 1411 kbps
+        return 1411
+    if target == "wav":
+        # 24-bit stereo @ 44.1kHz ≈ 2116 kbps
+        return 2116
+    if target == "flac":
+        # FLAC ~50-60% of WAV; conservative estimate
+        return 1000
+    return get_input_bitrate_kbps(input_path)
+
+
+def dispatch(input_path, src_ext, target, uid, split_chapters=0, split_size_mb=0, orig_name=None):
     """Route conversion to the correct converter module."""
     temp = current_app.config["TEMP_DIR"]
+
+    # Stem of original filename, used to name parts inside split ZIPs.
+    arc_stem = os.path.splitext(secure_filename(orig_name or "split"))[0] or "split"
+
+    # ── m4b chapter-split (with or without re-encode) ─────────────
+    if src_ext == "m4b" and split_chapters >= 2:
+        args, out_ext, _mime = _ffmpeg_args_for_audio_target(target)
+        parts = split_by_chapters(input_path, temp, f"{uid}_split",
+                                  split_chapters, args, out_ext)
+        zip_path = os.path.join(temp, f"{uid}_split.zip")
+        with zipfile.ZipFile(zip_path, "w") as zf:
+            for i, p in enumerate(parts, 1):
+                zf.write(p, f"{arc_stem}_part_{i:02d}.{out_ext}")
+        return zip_path, "application/zip", f"{arc_stem}_split.zip"
+
+    # ── m4b size-split (with or without re-encode) ────────────────
+    if src_ext == "m4b" and split_size_mb >= 1:
+        args, out_ext, _mime = _ffmpeg_args_for_audio_target(target)
+        est_kbps = _estimated_output_bitrate_kbps(target, input_path)
+        parts = split_by_size(input_path, temp, f"{uid}_split",
+                              split_size_mb, args, out_ext, est_kbps)
+        zip_path = os.path.join(temp, f"{uid}_split.zip")
+        with zipfile.ZipFile(zip_path, "w") as zf:
+            for i, p in enumerate(parts, 1):
+                zf.write(p, f"{arc_stem}_part_{i:02d}.{out_ext}")
+        return zip_path, "application/zip", f"{arc_stem}_split.zip"
 
     # EPS → image
     if src_ext == "eps" and target in ("png", "jpg"):
@@ -399,11 +498,15 @@ def dispatch(input_path, src_ext, target, uid):
         return out, "application/pdf", "converted.pdf"
 
     # ── Audio conversions ─────────────────────────────────────────
-    audio_inputs = ("flac", "wav", "mp3", "ogg", "m4a", "aac", "aiff")
+    audio_inputs = ("flac", "wav", "mp3", "ogg", "m4a", "m4b", "aac", "aiff")
+    mp3_cbr_bitrates = {
+        "mp3-64": 64, "mp3-96": 96, "mp3-128": 128,
+        "mp3-192": 192, "mp3-256": 256, "mp3-320": 320,
+    }
 
-    if src_ext in audio_inputs and target == "mp3-320":
+    if src_ext in audio_inputs and target in mp3_cbr_bitrates:
         out = os.path.join(temp, f"{uid}_out.mp3")
-        audio_to_mp3_320(input_path, out)
+        audio_to_mp3_cbr(input_path, out, mp3_cbr_bitrates[target])
         return out, "audio/mpeg", "converted.mp3"
 
     if src_ext in audio_inputs and target == "mp3-vbr":
@@ -435,6 +538,17 @@ def dispatch(input_path, src_ext, target, uid):
         out = os.path.join(temp, f"{uid}_out.m4a")
         audio_to_m4a(input_path, out)
         return out, "audio/mp4", "converted.m4a"
+
+    if src_ext == "m4b" and target == "m4b":
+        out = os.path.join(temp, f"{uid}_out.m4b")
+        audio_to_m4b_copy(input_path, out)
+        return out, "audio/mp4", "converted.m4b"
+
+    if src_ext == "m4b" and target.startswith("m4b-"):
+        bitrate = int(target.rsplit("-", 1)[1])
+        out = os.path.join(temp, f"{uid}_out.m4b")
+        audio_to_m4b_aac(input_path, out, bitrate)
+        return out, "audio/mp4", "converted.m4b"
 
     # ── Video conversions ─────────────────────────────────────────
     video_inputs = ("mp4", "mkv", "mov", "webm")

@@ -239,8 +239,7 @@ btnConvert.addEventListener('click', async () => {
         const res = await fetch('/api/convert', { method: 'POST', body: fd });
 
         if (!res.ok) {
-            const err = await res.json().catch(() => ({ error: 'Unknown error' }));
-            throw new Error(err.error || `HTTP ${res.status}`);
+            throw new Error(await parseApiError(res));
         }
 
         // Trigger download
@@ -275,7 +274,11 @@ btnConvert.addEventListener('click', async () => {
         const count = currentFiles.length;
         showAlert(`✓ Converted ${count} file${count > 1 ? 's' : ''} to ${selectedFormat.toUpperCase()} — download started`, 'success');
     } catch (err) {
-        showAlert(`Error: ${err.message}`, 'error');
+        let message = err && err.message ? err.message : 'Unknown error';
+        if (err instanceof TypeError) {
+            message = 'Network/proxy error while waiting for conversion. Large files may need higher proxy timeouts.';
+        }
+        showAlert(`Error: ${message}`, 'error');
     } finally {
         setConverting(false);
     }
@@ -328,6 +331,29 @@ function showAlert(msg, type) {
 }
 function hideAlert() {
     alertBox.classList.add('hidden');
+}
+
+async function parseApiError(res) {
+    let apiError = '';
+    try {
+        const payload = await res.json();
+        if (payload && typeof payload.error === 'string') {
+            apiError = payload.error;
+        }
+    } catch {
+        // Response was not JSON.
+    }
+
+    if (res.status === 413) {
+        return apiError || 'Upload exceeds MAX_FILE_SIZE on the server.';
+    }
+    if (res.status === 502 || res.status === 503 || res.status === 504) {
+        return apiError || 'Conversion timed out in a reverse proxy/upstream layer.';
+    }
+    if (res.status === 408 || res.status === 524) {
+        return apiError || 'Conversion request timed out before completion.';
+    }
+    return apiError || `HTTP ${res.status}`;
 }
 
 function formatBytes(bytes) {

@@ -1,6 +1,7 @@
 import os
 import logging
-from flask import Flask
+from flask import Flask, jsonify
+from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.middleware.proxy_fix import ProxyFix
 from .routes import main
 
@@ -9,6 +10,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S"
 )
+logger = logging.getLogger(__name__)
 
 def create_app():
     if not os.environ.get("ADMIN_USER") or not os.environ.get("ADMIN_PASS"):
@@ -16,6 +18,8 @@ def create_app():
 
     app = Flask(__name__, template_folder="templates", static_folder="static")
     max_mb = int(os.environ.get("MAX_FILE_SIZE", 50))
+    if max_mb < 1:
+        raise SystemExit("MAX_FILE_SIZE must be >= 1 (value is in MB).")
     app.config["MAX_CONTENT_LENGTH"] = max_mb * 1024 * 1024
     app.config["TEMP_DIR"] = os.environ.get("TEMP_DIR", "/config/temp")
     app.config["SECRET_KEY"] = os.urandom(24)
@@ -28,7 +32,18 @@ def create_app():
     BASE_URL = os.environ.get("BASE_URL", "http://localhost:7391").rstrip("/")
     app.config["BASE_URL"] = BASE_URL
 
+    @app.errorhandler(RequestEntityTooLarge)
+    def handle_upload_too_large(_err):
+        configured_mb = app.config["MAX_CONTENT_LENGTH"] // (1024 * 1024)
+        return jsonify({
+            "error": (
+                f"Upload exceeds MAX_FILE_SIZE ({configured_mb} MB). "
+                "Increase MAX_FILE_SIZE or split the file."
+            )
+        }), 413
+
     app.register_blueprint(main)
+    logger.info("Configured MAX_FILE_SIZE=%d MB", max_mb)
     return app
 
 

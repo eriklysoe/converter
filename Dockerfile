@@ -9,7 +9,7 @@ LABEL org.opencontainers.image.url="https://github.com/eriklysoe/converter"
 ENV PUID=1000 \
     PGID=1000 \
     TZ=Europe/Oslo \
-    MAX_FILE_SIZE=52428800 \
+    MAX_FILE_SIZE=50 \
     PYTHONUNBUFFERED=1 \
     FLASK_APP=app/app.py
 

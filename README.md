@@ -5,6 +5,18 @@
 
 A self-hosted file format converter. Drag, drop, convert, download.
 
+## Release v1.6
+
+### Highlights
+
+- Improved handling of large uploads with explicit `413` JSON errors when `MAX_FILE_SIZE` is exceeded.
+- Better conversion reliability and diagnostics for long-running jobs (request IDs, timing, clearer timeout messages).
+- Safer temp-file lifecycle: cleanup now happens after response close, including split/page intermediates.
+- Frontend now surfaces clearer errors for proxy/network timeout scenarios.
+- Docker default `MAX_FILE_SIZE` env value is now aligned to MB semantics.
+
+For full setup and runtime details, see the sections below.
+
 ## Supported conversions
 
 ### Images
@@ -146,5 +158,6 @@ docker compose up --build
 - HEIC/HEIF support requires pillow-heif (included in requirements).
 - `ADMIN_USER` and `ADMIN_PASS` must both be set or the app will refuse to start.
 - The app is served via Gunicorn (production WSGI server) on port 7391.
+- Large audio/video conversions can exceed default reverse-proxy timeouts (often 60s); if you run behind Nginx/ingress, increase upstream read/send timeout values.
 - Temporary files are cleaned up after each conversion.
 - The Docker image is large due to Inkscape + Ghostscript + LibreOffice + FFmpeg. This is expected.

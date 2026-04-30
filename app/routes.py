@@ -1,6 +1,7 @@
 import os
 import uuid
 import logging
+import time
 import zipfile
 from functools import wraps
 from flask import Blueprint, request, jsonify, send_file, render_template, current_app, Response
@@ -117,6 +118,40 @@ def temp_path(filename):
     return os.path.join(current_app.config["TEMP_DIR"], filename)
 
 
+def cleanup_files(paths):
+    """Best-effort cleanup for temporary files."""
+    seen = set()
+    for path in paths:
+        if not path or path in seen:
+            continue
+        seen.add(path)
+        try:
+            os.remove(path)
+        except FileNotFoundError:
+            continue
+        except Exception as err:
+            logger.warning("Failed to remove temp file %s: %s", path, err)
+
+
+def send_file_with_cleanup(path, mimetype, download_name, cleanup_paths):
+    """Return send_file response and clean temp files when response closes."""
+    response = send_file(path, mimetype=mimetype, as_attachment=True, download_name=download_name)
+    cleanup_snapshot = tuple(cleanup_paths)
+    response.call_on_close(lambda: cleanup_files(cleanup_snapshot))
+    return response
+
+
+def user_error_message(exc):
+    msg = str(exc).strip() or exc.__class__.__name__
+    lowered = msg.lower()
+    if "timeout" in lowered or "timed out" in lowered:
+        return (
+            "Conversion timed out before completion. "
+            "Try splitting the file or increasing reverse-proxy timeouts."
+        )
+    return msg
+
+
 @main.route("/")
 @require_auth
 def index():
@@ -190,18 +225,45 @@ def convert():
         return jsonify({"error": "Split is only supported for a single m4b file"}), 400
     if split_chapters and split_size_mb:
         return jsonify({"error": "Choose either split-by-chapters or split-by-size, not both"}), 400
-    input_paths = []
+    request_id = uuid.uuid4().hex[:8]
+    started = time.monotonic()
+    cleanup_paths = []
     output_paths = []
+
+    logger.info(
+        "[%s] Convert start: files=%d target=%s merge=%s split_chapters=%d split_size_mb=%d",
+        request_id, len(files), target, merge, split_chapters, split_size_mb
+    )
+
+    def _send_result(path, mimetype, download_name):
+        cleanup_paths.append(path)
+        elapsed = time.monotonic() - started
+        try:
+            out_bytes = os.path.getsize(path)
+            logger.info(
+                "[%s] Convert done in %.2fs: %s (%d bytes)",
+                request_id, elapsed, download_name, out_bytes
+            )
+        except OSError:
+            logger.info("[%s] Convert done in %.2fs: %s", request_id, elapsed, download_name)
+        return send_file_with_cleanup(path, mimetype, download_name, cleanup_paths)
 
     try:
         # Save all uploads
         saved_files = []
+        total_upload_bytes = 0
         for f in files:
             uid = uuid.uuid4().hex
             safe_name = secure_filename(f.filename)
             input_path = temp_path(f"{uid}_{safe_name}")
             f.save(input_path)
-            input_paths.append(input_path)
+            cleanup_paths.append(input_path)
+
+            try:
+                total_upload_bytes += os.path.getsize(input_path)
+            except OSError:
+                pass
+
             src_ext = get_ext(f.filename)
 
             # ZIP input: extract and treat each file inside as an individual input
@@ -218,15 +280,20 @@ def convert():
                         member_path = temp_path(f"{member_uid}_{member_safe}")
                         with zf.open(member) as src, open(member_path, "wb") as dst:
                             dst.write(src.read())
-                        input_paths.append(member_path)
+                        cleanup_paths.append(member_path)
                         saved_files.append((member_path, member_ext, os.path.basename(member)))
                 continue
 
             saved_files.append((input_path, src_ext, f.filename))
-            logger.info("Received %s → %s (%s)", src_ext, target, safe_name)
 
         if not saved_files:
+            cleanup_files(cleanup_paths)
             return jsonify({"error": "ZIP contained no files compatible with the selected target format"}), 400
+
+        logger.info(
+            "[%s] Accepted %d source item(s), upload size=%.2f MB",
+            request_id, len(saved_files), total_upload_bytes / (1024 * 1024)
+        )
 
         # Merge mode: combine inputs into one PDF, then convert
         if merge:
@@ -234,46 +301,46 @@ def convert():
 
             # If all inputs are PDFs, merge directly; otherwise convert each to PDF first
             pdf_paths = []
-            for inp, ext, orig in saved_files:
+            for inp, ext, _orig in saved_files:
                 if ext == "pdf":
                     pdf_paths.append(inp)
                 else:
-                    # Convert to PDF first
-                    tmp_pdf = os.path.join(temp, f"{merge_uid}_{os.path.basename(inp)}.pdf")
                     tmp_out, _, _ = dispatch(inp, ext, "pdf", merge_uid + os.path.basename(inp))
+                    cleanup_paths.append(tmp_out)
                     pdf_paths.append(tmp_out)
 
             merged_pdf = os.path.join(temp, f"{merge_uid}_merged.pdf")
             merge_pdfs(pdf_paths, merged_pdf)
-            input_paths.append(merged_pdf)
+            cleanup_paths.append(merged_pdf)
 
             if target == "pdf":
-                return send_file(merged_pdf, mimetype="application/pdf",
-                                 as_attachment=True, download_name="merged.pdf")
+                return _send_result(merged_pdf, "application/pdf", "merged.pdf")
 
-            out_path, mime, dl_name = dispatch(merged_pdf, "pdf", target, merge_uid)
-            return send_file(out_path, mimetype=mime, as_attachment=True,
-                             download_name=f"merged.{target}")
+            out_path, mime, _dl_name = dispatch(merged_pdf, "pdf", target, merge_uid)
+            return _send_result(out_path, mime, f"merged.{target}")
 
         # Normal mode: convert each file individually
         for inp, ext, orig in saved_files:
             uid = uuid.uuid4().hex
-            out_path, mime, dl_name = dispatch(inp, ext, target, uid,
-                                               split_chapters=split_chapters,
-                                               split_size_mb=split_size_mb,
-                                               orig_name=orig)
+            out_path, mime, dl_name = dispatch(
+                inp, ext, target, uid,
+                split_chapters=split_chapters,
+                split_size_mb=split_size_mb,
+                orig_name=orig,
+            )
             output_paths.append((out_path, mime, dl_name, orig))
 
         # Single file — return directly
         if len(output_paths) == 1:
-            out_path, mime, dl_name, orig = output_paths[0]
-            return send_file(out_path, mimetype=mime, as_attachment=True, download_name=dl_name)
+            out_path, mime, dl_name, _orig = output_paths[0]
+            return _send_result(out_path, mime, dl_name)
 
         # Multiple files — zip all outputs
         zip_uid = uuid.uuid4().hex
         zip_path = os.path.join(temp, f"{zip_uid}_batch.zip")
         with zipfile.ZipFile(zip_path, "w") as zf:
-            for out_path, mime, dl_name, orig_name in output_paths:
+            for out_path, _mime, _dl_name, orig_name in output_paths:
+                cleanup_paths.append(out_path)
                 base = os.path.splitext(orig_name)[0]
                 if out_path.endswith(".zip"):
                     arc_name = f"{base}.zip"
@@ -281,15 +348,13 @@ def convert():
                     arc_name = f"{base}.{target}"
                 zf.write(out_path, arc_name)
 
-        return send_file(zip_path, mimetype="application/zip", as_attachment=True, download_name="converted.zip")
+        return _send_result(zip_path, "application/zip", "converted.zip")
 
     except Exception as e:
-        logger.error("Conversion failed: %s", e, exc_info=True)
-        return jsonify({"error": str(e)}), 500
-    finally:
-        for p in input_paths:
-            if os.path.exists(p):
-                os.remove(p)
+        cleanup_files(cleanup_paths)
+        elapsed = time.monotonic() - started
+        logger.error("[%s] Conversion failed after %.2fs: %s", request_id, elapsed, e, exc_info=True)
+        return jsonify({"error": user_error_message(e)}), 500
 
 
 def _ffmpeg_args_for_audio_target(target):
@@ -359,9 +424,12 @@ def dispatch(input_path, src_ext, target, uid, split_chapters=0, split_size_mb=0
         parts = split_by_chapters(input_path, temp, f"{uid}_split",
                                   split_chapters, args, out_ext)
         zip_path = os.path.join(temp, f"{uid}_split.zip")
-        with zipfile.ZipFile(zip_path, "w") as zf:
-            for i, p in enumerate(parts, 1):
-                zf.write(p, f"{arc_stem}_part_{i:02d}.{out_ext}")
+        try:
+            with zipfile.ZipFile(zip_path, "w") as zf:
+                for i, p in enumerate(parts, 1):
+                    zf.write(p, f"{arc_stem}_part_{i:02d}.{out_ext}")
+        finally:
+            cleanup_files(parts)
         return zip_path, "application/zip", f"{arc_stem}_split.zip"
 
     # ── m4b size-split (with or without re-encode) ────────────────
@@ -371,9 +439,12 @@ def dispatch(input_path, src_ext, target, uid, split_chapters=0, split_size_mb=0
         parts = split_by_size(input_path, temp, f"{uid}_split",
                               split_size_mb, args, out_ext, est_kbps)
         zip_path = os.path.join(temp, f"{uid}_split.zip")
-        with zipfile.ZipFile(zip_path, "w") as zf:
-            for i, p in enumerate(parts, 1):
-                zf.write(p, f"{arc_stem}_part_{i:02d}.{out_ext}")
+        try:
+            with zipfile.ZipFile(zip_path, "w") as zf:
+                for i, p in enumerate(parts, 1):
+                    zf.write(p, f"{arc_stem}_part_{i:02d}.{out_ext}")
+        finally:
+            cleanup_files(parts)
         return zip_path, "application/zip", f"{arc_stem}_split.zip"
 
     # EPS → image
@@ -457,9 +528,12 @@ def dispatch(input_path, src_ext, target, uid, split_chapters=0, split_size_mb=0
             return pages[0], f"image/{target}", f"page1.{target}"
         # Multiple pages → zip
         zip_path = os.path.join(temp, f"{uid}_pages.zip")
-        with zipfile.ZipFile(zip_path, "w") as zf:
-            for p in pages:
-                zf.write(p, os.path.basename(p))
+        try:
+            with zipfile.ZipFile(zip_path, "w") as zf:
+                for p in pages:
+                    zf.write(p, os.path.basename(p))
+        finally:
+            cleanup_files(pages)
         return zip_path, "application/zip", "pages.zip"
 
     # PDF → SVG
@@ -468,9 +542,12 @@ def dispatch(input_path, src_ext, target, uid, split_chapters=0, split_size_mb=0
         if len(svgs) == 1:
             return svgs[0], "image/svg+xml", "converted.svg"
         zip_path = os.path.join(temp, f"{uid}_svgs.zip")
-        with zipfile.ZipFile(zip_path, "w") as zf:
-            for s in svgs:
-                zf.write(s, os.path.basename(s))
+        try:
+            with zipfile.ZipFile(zip_path, "w") as zf:
+                for s in svgs:
+                    zf.write(s, os.path.basename(s))
+        finally:
+            cleanup_files(svgs)
         return zip_path, "application/zip", "converted_svg.zip"
 
     # PDF → DOCX
